@@ -1401,24 +1401,33 @@ function camLoop(){
   const best=found[0];
   mode=best.mode;syncSeg('sym','m',mode);
   scannedImg=shotURL;
-if(best.kind==='three' || best.kind==='mono'){
+  if(best.kind==='three' || best.kind==='mono'){
     setLayers(3);
-    let parts;
+    let parts, monoText;
     if(best.kind==='mono'){
       monoMark=1;
-      parts=splitThree(best.res[0]||'');
+      monoText=best.res[0]||'';
+      parts=splitThree(monoText);
     } else {
       monoMark=0;
       parts=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
+      monoText=parts.filter(Boolean).join(' ');
     }
     D.ch=parts;
     okChime();
     for(let i=0;i<3;i++)$('t-'+i).value='';
     for(let i=0;i<3;i++)if(parts[i]){await typeOut($('t-'+i),parts[i],22);grow($('t-'+i),120);}
     document.body.classList.add('rgb-solo');
-    $('txt').value=parts.filter(Boolean).join(' ');
+    if(best.kind==='mono'){
+      $('txt').value='';
+      await typeOut($('txt'),monoText,26);
+      grow($('txt'),200);
+      const el=$('txt');el.scrollTop=el.scrollHeight;el.selectionStart=el.selectionEnd=el.value.length;
+    } else {
+      $('txt').value=monoText;
+    }
     D.single=$('txt').value;
-    showResult('✓ прочитано · камера'+(best.kind==='mono'?' · моноліт':''),null);
+    showResult('✓ прочитано · камера'+(best.kind==='mono'?' · моноліт':''),best.kind==='mono'?monoText:null);
     if(typeof updateColorPreview==='function') updateColorPreview(parts[0],parts[1],parts[2]);
   }else{
     setLayers(1);monoMark=0;
