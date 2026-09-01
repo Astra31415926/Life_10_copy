@@ -1402,7 +1402,7 @@ async function showCamResult(found,shotURL){
   mode=best.mode;syncSeg('sym','m',mode);
   scannedImg=shotURL;
   if(best.kind==='three'){
-    setLayers(3);monoMark=0;
+    document.querySelector('#layers button[data-l="3"]').click(); monoMark=0;
     D.ch=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
     okChime();
     for(let i=0;i<3;i++)$('t-'+i).value='';
