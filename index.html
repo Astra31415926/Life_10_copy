@@ -1632,7 +1632,7 @@ $('file').onchange=e=>{
     const best=found[0];
     mode=best.mode;syncSeg('sym','m',mode);
     scannedImg=shotURL;   /* зберігаємо оригінал, не перемальовуємо поки не редагують */
-    if(best.kind==='three' || best.kind==='mono'){
+       if(best.kind==='three' || best.kind==='mono'){
       setLayers(3);
       let parts, monoText;
       if(best.kind==='mono'){
@@ -1655,11 +1655,13 @@ $('file').onchange=e=>{
         await typeOut($('txt'),monoText,26);
         grow($('txt'),200);
         const el=$('txt');el.scrollTop=el.scrollHeight;el.selectionStart=el.selectionEnd=el.value.length;
+        prevLen=monoText.length;pushHist();
+        showResult('✓ прочитано · монолітний текст',monoText);
       } else {
         $('txt').value=monoText;
+        D.single=$('txt').value;
+        showResult('✓ прочитано · три канали',null);
       }
-      D.single=$('txt').value;
-      showResult('✓ прочитано'+(best.kind==='mono'?' · моноліт':' · три канали'),best.kind==='mono'?monoText:null);
     }else{
       setLayers(1);monoMark=0;
       const txt=best.res[0]||'';
