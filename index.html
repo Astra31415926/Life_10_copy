@@ -1401,18 +1401,25 @@ function camLoop(){
   const best=found[0];
   mode=best.mode;syncSeg('sym','m',mode);
   scannedImg=shotURL;
- if(best.kind==='three'){
-    document.querySelector('#layers button[data-l="3"]').click(); monoMark=0;
-    D.ch=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
+if(best.kind==='three' || best.kind==='mono'){
+    setLayers(3);
+    let parts;
+    if(best.kind==='mono'){
+      monoMark=1;
+      parts=splitThree(best.res[0]||'');
+    } else {
+      monoMark=0;
+      parts=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
+    }
+    D.ch=parts;
     okChime();
-
-   
     for(let i=0;i<3;i++)$('t-'+i).value='';
-    for(let i=0;i<3;i++)if(best.res[i]){await typeOut($('t-'+i),best.res[i],22);grow($('t-'+i),120);}
-        document.body.classList.add('rgb-solo');
-    $('txt').value=[best.res[0],best.res[1],best.res[2]].filter(Boolean).join(' ');
+    for(let i=0;i<3;i++)if(parts[i]){await typeOut($('t-'+i),parts[i],22);grow($('t-'+i),120);}
+    document.body.classList.add('rgb-solo');
+    $('txt').value=parts.filter(Boolean).join(' ');
     D.single=$('txt').value;
-    showResult('✓ прочитано · камера',null);
+    showResult('✓ прочитано · камера'+(best.kind==='mono'?' · моноліт':''),null);
+    if(typeof updateColorPreview==='function') updateColorPreview(parts[0],parts[1],parts[2]);
   }else{
     setLayers(1);monoMark=0;
     const txt=best.res[0]||'';
@@ -1423,7 +1430,7 @@ function camLoop(){
     const el=$('txt');el.scrollTop=el.scrollHeight;
     showResult('✓ прочитано · камера',txt);
   }
- scannedImg=null;build();
+  scannedImg=null;build();
 }
 /* ═══════════════════════════════════════════════════════════════════════════
    TAINA · ДЕКОДЕР v5 — під НОВУ 3-шарову рамку
