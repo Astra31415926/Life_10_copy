@@ -1396,7 +1396,7 @@ function camLoop(){
 }
  $('cam-btn').onclick=()=>{ camStream?stopCam():startCam(); };
 
- async function showCamResult(found,shotURL){
+async function showCamResult(found,shotURL){
   flash();
   const best=found[0];
   mode=best.mode;syncSeg('sym','m',mode);
