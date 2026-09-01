@@ -1396,7 +1396,7 @@ function camLoop(){
 }
  $('cam-btn').onclick=()=>{ camStream?stopCam():startCam(); };
 
-  async function showCamResult(found,shotURL){
+ async function showCamResult(found,shotURL){
   flash();
   const best=found[0];
   mode=best.mode;syncSeg('sym','m',mode);
@@ -1407,10 +1407,11 @@ function camLoop(){
     okChime();
     for(let i=0;i<3;i++)$('t-'+i).value='';
     for(let i=0;i<3;i++)if(best.res[i]){await typeOut($('t-'+i),best.res[i],22);grow($('t-'+i),120);}
-        document.body.classList.add('rgb-solo');
+    document.body.classList.add('rgb-solo');
     $('txt').value=[best.res[0],best.res[1],best.res[2]].filter(Boolean).join(' ');
     D.single=$('txt').value;
     showResult('✓ прочитано · камера',null);
+    if(typeof updateColorPreview==='function') updateColorPreview(best.res[0],best.res[1],best.res[2]);
   }else{
     setLayers(1);monoMark=0;
     const txt=best.res[0]||'';
@@ -1421,7 +1422,7 @@ function camLoop(){
     const el=$('txt');el.scrollTop=el.scrollHeight;
     showResult('✓ прочитано · камера',txt);
   }
- scannedImg=null;build();
+  scannedImg=null;build();
 }
 /* ═══════════════════════════════════════════════════════════════════════════
    TAINA · ДЕКОДЕР v5 — під НОВУ 3-шарову рамку
