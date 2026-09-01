@@ -1588,8 +1588,7 @@ function runDecodeAttempts(img){
     im.onload=()=>{OFF.width=OFF.height=512;OCTX.imageSmoothingEnabled=false;
       OCTX.drawImage(im,0,0,512,512);blit();res()};
     im.onerror=()=>res();im.src=url;});}
-
- $('file').onchange=e=>{
+$('file').onchange=e=>{
   const f=e.target.files[0];if(!f)return;
   const url=URL.createObjectURL(f),im=new Image();
   im.onload=async()=>{
@@ -1609,7 +1608,7 @@ function runDecodeAttempts(img){
     st.classList.add('scanning');startScanSound();
     $('rt').innerHTML='<span class="w">сканування…</span>';
     const [found]=await Promise.all([
- (async()=>{await sleep(30);return runDecodeAttempts(im)})(),
+  (async()=>{await sleep(30);return runDecodeAttempts(im)})(),
       sleep(1600)]);
     stopScanSound();st.classList.remove('scanning');
 
@@ -1624,15 +1623,17 @@ function runDecodeAttempts(img){
     const best=found[0];
     mode=best.mode;syncSeg('sym','m',mode);
     scannedImg=shotURL;   /* зберігаємо оригінал, не перемальовуємо поки не редагують */
-if(best.kind==='three' || best.kind==='mono'){
+    if(best.kind==='three' || best.kind==='mono'){
       setLayers(3);
-      let parts;
+      let parts, monoText;
       if(best.kind==='mono'){
         monoMark=1;
-        parts=splitThree(best.res[0]||'');
+        monoText=best.res[0]||'';
+        parts=splitThree(monoText);
       } else {
         monoMark=0;
         parts=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
+        monoText=parts.filter(Boolean).join(' ');
       }
       D.ch=parts;
       okChime();
@@ -1640,9 +1641,16 @@ if(best.kind==='three' || best.kind==='mono'){
       for(let i=0;i<3;i++)$('t-'+i).value='';
       for(let i=0;i<3;i++)if(parts[i]){await typeOut($('t-'+i),parts[i],22);grow($('t-'+i),120);}
             document.body.classList.add('rgb-solo');
-      $('txt').value=parts.filter(Boolean).join(' ');
+      if(best.kind==='mono'){
+        $('txt').value='';
+        await typeOut($('txt'),monoText,26);
+        grow($('txt'),200);
+        const el=$('txt');el.scrollTop=el.scrollHeight;el.selectionStart=el.selectionEnd=el.value.length;
+      } else {
+        $('txt').value=monoText;
+      }
       D.single=$('txt').value;
-      showResult('✓ прочитано'+(best.kind==='mono'?' · моноліт':' · три канали'),null);
+      showResult('✓ прочитано'+(best.kind==='mono'?' · моноліт':' · три канали'),best.kind==='mono'?monoText:null);
     }else{
       setLayers(1);monoMark=0;
       const txt=best.res[0]||'';
@@ -1654,7 +1662,6 @@ if(best.kind==='three' || best.kind==='mono'){
       const el=$('txt');el.scrollTop=el.scrollHeight;el.selectionStart=el.selectionEnd=el.value.length;
       prevLen=txt.length;pushHist();
       showResult('✓ прочитано',txt);}
-
    /* адмін-звіт */
     $('report').innerHTML='<div style="margin-bottom:4px;color:var(--acc-dim)">Варіантів: '+found.length+'</div>'+
       found.slice(0,6).map(f=>{
