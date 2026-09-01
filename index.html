@@ -1401,10 +1401,12 @@ function camLoop(){
   const best=found[0];
   mode=best.mode;syncSeg('sym','m',mode);
   scannedImg=shotURL;
-  if(best.kind==='three'){
-    setLayers(3);monoMark=0;
+ if(best.kind==='three'){
+    document.querySelector('#layers button[data-l="3"]').click(); monoMark=0;
     D.ch=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
     okChime();
+
+   
     for(let i=0;i<3;i++)$('t-'+i).value='';
     for(let i=0;i<3;i++)if(best.res[i]){await typeOut($('t-'+i),best.res[i],22);grow($('t-'+i),120);}
         document.body.classList.add('rgb-solo');
