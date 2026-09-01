@@ -1396,22 +1396,21 @@ function camLoop(){
 }
  $('cam-btn').onclick=()=>{ camStream?stopCam():startCam(); };
 
-async function showCamResult(found,shotURL){
+  async function showCamResult(found,shotURL){
   flash();
   const best=found[0];
   mode=best.mode;syncSeg('sym','m',mode);
   scannedImg=shotURL;
   if(best.kind==='three'){
-    document.querySelector('#layers button[data-l="3"]').click(); monoMark=0;
+    setLayers(3);monoMark=0;
     D.ch=[best.res[0]||'',best.res[1]||'',best.res[2]||''];
     okChime();
     for(let i=0;i<3;i++)$('t-'+i).value='';
     for(let i=0;i<3;i++)if(best.res[i]){await typeOut($('t-'+i),best.res[i],22);grow($('t-'+i),120);}
-    document.body.classList.add('rgb-solo');
+        document.body.classList.add('rgb-solo');
     $('txt').value=[best.res[0],best.res[1],best.res[2]].filter(Boolean).join(' ');
     D.single=$('txt').value;
     showResult('✓ прочитано · камера',null);
-    if(typeof updateColorPreview==='function') updateColorPreview(best.res[0],best.res[1],best.res[2]);
   }else{
     setLayers(1);monoMark=0;
     const txt=best.res[0]||'';
@@ -1422,7 +1421,7 @@ async function showCamResult(found,shotURL){
     const el=$('txt');el.scrollTop=el.scrollHeight;
     showResult('✓ прочитано · камера',txt);
   }
-  scannedImg=null;build();
+ scannedImg=null;build();
 }
 /* ═══════════════════════════════════════════════════════════════════════════
    TAINA · ДЕКОДЕР v5 — під НОВУ 3-шарову рамку
@@ -1581,24 +1580,21 @@ function runDecodeAttempts(img){
       OCTX.drawImage(im,0,0,512,512);blit();res()};
     im.onerror=()=>res();im.src=url;});}
 
-$('#file').onchange=e=>{
- const f=e.target.files[0];if(!f)return;
- const url=URL.createObjectURL(f),im=new Image();
- im.onload=async()=>{
-  setLayers(3);monoMark=0;
-  URL.revokeObjectURL(url);busy=true;
-  const t0=document.createElement('canvas');t0.width=im.naturalWidth;t0.height=im.naturalHeight;
-  const x0=t0.getContext('2d',{willReadFrequently:true});
-  x0.imageSmoothingEnabled=false;x0.drawImage(im,0,0);
-  const px=x0.getImageData(0,0,t0.width,t0.height).data;
-  const shot=document.createElement('canvas');shot.width=shot.height=512;
-  const sx=shot.getContext('2d');sx.imageSmoothingEnabled=false;
-  const mn=Math.min(im.width,im.height);
-  sx.drawImage(im,(im.width-mn)/2,(im.height-mn)/2,mn,mn,0,0,512,512);
-  const shotURL=shot.toDataURL('image/png');
+ $('file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const url=URL.createObjectURL(f),im=new Image();
+  im.onload=async()=>{
+    URL.revokeObjectURL(url);busy=true;
+    const t0=document.createElement('canvas');t0.width=im.naturalWidth;t0.height=im.naturalHeight;
+    const x0=t0.getContext('2d',{willReadFrequently:true});
+    x0.imageSmoothingEnabled=false;x0.drawImage(im,0,0);
+    const px=x0.getImageData(0,0,t0.width,t0.height).data;
+    const shot=document.createElement('canvas');shot.width=shot.height=512;
+    const sx=shot.getContext('2d');sx.imageSmoothingEnabled=false;
+    const mn=Math.min(im.width,im.height);
+    sx.drawImage(im,(im.width-mn)/2,(im.height-mn)/2,mn,mn,0,0,512,512);
+    const shotURL=shot.toDataURL('image/png');
 
-
-   
     const st=$('stage');st.classList.remove('failed');
     await drawScanned(shotURL);
     st.classList.add('scanning');startScanSound();
