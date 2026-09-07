@@ -160,6 +160,37 @@ function zb_detectZebra(wGray,S,minContrast) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  zb_localBinarize — локальна бінаризація варпу (4×4 зони)
+// ═══════════════════════════════════════════════════════
+
+function zb_localBinarize(warped, S) {
+  const src = warped.data;
+  const out = new ImageData(S, S);
+  const od = out.data;
+  const zones = 4;
+  const zw = Math.floor(S / zones);
+  const zh = Math.floor(S / zones);
+  for (let az = 0; az < zones; az++) {
+    for (let ax = 0; ax < zones; ax++) {
+      let mn = 255, mx = 0;
+      for (let dy = 0; dy < zh; dy++) for (let dx = 0; dx < zw; dx++) {
+        const p = ((az*zh+dy)*S + (ax*zw+dx))*4;
+        const v = (src[p]*77 + src[p+1]*150 + src[p+2]*29) >> 8;
+        if (v < mn) mn = v; if (v > mx) mx = v;
+      }
+      const thr = (mn + mx) >> 1;
+      for (let dy = 0; dy < zh; dy++) for (let dx = 0; dx < zw; dx++) {
+        const p = ((az*zh+dy)*S + (ax*zw+dx))*4;
+        const v = (src[p]*77 + src[p+1]*150 + src[p+2]*29) >> 8;
+        const b = v < thr ? 0 : 255;
+        od[p]=od[p+1]=od[p+2]=b; od[p+3]=255;
+      }
+    }
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
 //  sampleCircles — ZEBRA v5.1 — не змінювати
 // ═══════════════════════════════════════════════════════
 
@@ -333,7 +364,7 @@ function zb_findZebra(idata,w,h){
                  br:{x:bestCorners.br.x+expand,y:bestCorners.br.y+expand},bl:{x:bestCorners.bl.x-expand,y:bestCorners.bl.y+expand}};
   const S=600,warped=zb_warpPerspective(idata,w,h,corners,S);if(!warped)return null;
   const wGray=zb_toGray(warped,S,S),zebra=zb_detectZebra(wGray,S,50);if(!zebra)return null;
-  const circles=sampleCircles(warped,S,zebra.T,zebra.modSize);
+  const circles=sampleCircles(zb_localBinarize(warped,S),S,zebra.T,zebra.modSize);
   return{zebra,circles};}
 
 // ═══════════════════════════════════════════════════════
