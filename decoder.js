@@ -1,4 +1,4 @@
-// decoder.js · taina · робастний декодер байткоду (v3)
+// decoder.js · taina · робастний декодер байткоду (v3 + sampleCircles)
 // ─────────────────────────────────────────────────────────────
 // Ідея: зовнішня суцільна тёмна рамка коду — це замкнений квадратний
 // контур (finder). Він завжди чорно-білий (FRAME_A/FRAME_B), тож контраст
@@ -9,6 +9,7 @@
 //   2. пошук рамки = найбільша майже-квадратна тёмна компонента → 4 кути
 //   3. гомографія → вирівнювання навіть під нахилом
 //   4. вимір модуля з товщини рамки, підбір T, вибірка n×n у центрах модулів
+//      → sampleCircles: усереднення по колу (r=0.28*module) замість 3×3 квадрата
 //   5. класифікація (ч/б або 8-кольорова RGB) + декод за baseCells/mirrors
 //      + перевірка re-encode ≥ MIN_AGREE («краще не прочитати, ніж збрехати»)
 //
@@ -21,14 +22,15 @@
 'use strict';
 
 const DEC = {
-  MAXPX_FILE: 1600,   // до якого розміру масштабувати файл
-  MAXPX_CAM : 1000,   // ... і кадр камери
-  CC_GRID   : 220,    // роздільність коарс-сітки для пошуку рамки (швидкість)
-  DESKEW_N  : 800,    // розмір вирівняного квадрата
-  MIN_AGREE : 0.90,   // мін. згода re-encode для прийняття результату
-  MIN_MARGIN: 0.5,    // мін. запас голосування по дзеркальних копіях
-  PAD       : 3,      // товщина рамки (модулів) — фіксовано форматом
-  SAT       : 55      // поріг «кольоровості» модуля (RGB vs ч/б)
+  MAXPX_FILE: 1600,
+  MAXPX_CAM : 1000,
+  CC_GRID   : 220,
+  DESKEW_N  : 800,
+  MIN_AGREE : 0.90,
+  MIN_MARGIN: 0.5,
+  PAD       : 3,
+  SAT       : 55,
+  CIRCLE_R  : 0.28   // радіус кола вибірки як частка модуля
 };
 
 const ND_PAL2   = { r:[220,50,60], g:[65,195,65], b:[60,70,215] };
@@ -44,7 +46,6 @@ function integralImage(px,W,H){
       I[(y+1)*st+(x+1)] = I[y*st+(x+1)] + row; } }
   return I;
 }
-// адаптивний поріг (Bradley): 1 = світлий, 0 = тёмний
 function binarize(px,W,H,winFrac,tPct){
   const I=integralImage(px,W,H), st=W+1;
   const S=Math.max(2,Math.floor(W*(winFrac||0.10))), t=(tPct==null?12:tPct);
@@ -102,7 +103,7 @@ function coarseFrameComponent(bin,W,H){
     }
     return best;
   };
-  const best = scan(true) || scan(false);   // спершу «квадратна» рамка, потім будь-яка велика тёмна
+  const best = scan(true) || scan(false);
   return best ? {best,bw,bh} : null;
 }
 
@@ -111,7 +112,6 @@ function findFrameQuad(bin,W,H){
   const {best,bw,bh}=r;
   const bx0=Math.max(0,Math.floor(best.minx*bw)-2), by0=Math.max(0,Math.floor(best.miny*bh)-2);
   const bx1=Math.min(W-1,Math.ceil((best.maxx+1)*bw)+2), by1=Math.min(H-1,Math.ceil((best.maxy+1)*bh)+2);
-  // точні кути = екстремуми тёмних пікселів у ROI (працює під поворотом до ~40°)
   let TL=null,TR=null,BR=null,BL=null;
   for(let y=by0;y<=by1;y++)for(let x=bx0;x<=bx1;x++){
     if(bin[y*W+x])continue;
@@ -123,7 +123,7 @@ function findFrameQuad(bin,W,H){
   }
   if(!TL||!TR||!BR||!BL)return null;
   const area=Math.abs((TR.x-TL.x)*(BL.y-TL.y)-(BL.x-TL.x)*(TR.y-TL.y));
-  if(area < W*H*0.01) return null;         // вироджений чотирикутник — відкинути
+  if(area < W*H*0.01) return null;
   return { TL:[TL.x,TL.y], TR:[TR.x,TR.y], BR:[BR.x,BR.y], BL:[BL.x,BL.y] };
 }
 
@@ -167,26 +167,76 @@ function deskew(px,IW,IH,cor,N){
   return out;
 }
 
-// ═══════════════ 4. ВИМІР МОДУЛЯ + ВИБІРКА СІТКИ ═══════════════
+// ═══════════════ 4. ВИМІР МОДУЛЯ ═══════════════
 function firstDarkRun(get,len,thr){
-  let i=0; while(i<len && get(i)>=thr) i++;   // пропустити світле поле/тиху зону
+  let i=0; while(i<len && get(i)>=thr) i++;
   if(i>=len)return 0;
   let r=0; while(i<len && get(i)<thr){ i++; r++; }
-  return r;                                    // товщина першого тёмного шару ≈ 1 модуль
+  return r;
 }
 function measureModule(gray,N,thr){
   const at=(x,y)=>gray[y*N+x], runs=[], lim=N*0.18;
   for(const f of [0.3,0.4,0.5,0.6,0.7]){
     const c=Math.round(N*f); let r;
-    r=firstDarkRun(k=>at(c,k),N,thr);       if(r>1&&r<lim)runs.push(r); // згори
-    r=firstDarkRun(k=>at(c,N-1-k),N,thr);   if(r>1&&r<lim)runs.push(r); // знизу
-    r=firstDarkRun(k=>at(k,c),N,thr);       if(r>1&&r<lim)runs.push(r); // зліва
-    r=firstDarkRun(k=>at(N-1-k,c),N,thr);   if(r>1&&r<lim)runs.push(r); // справа
+    r=firstDarkRun(k=>at(c,k),N,thr);       if(r>1&&r<lim)runs.push(r);
+    r=firstDarkRun(k=>at(c,N-1-k),N,thr);   if(r>1&&r<lim)runs.push(r);
+    r=firstDarkRun(k=>at(k,c),N,thr);       if(r>1&&r<lim)runs.push(r);
+    r=firstDarkRun(k=>at(N-1-k,c),N,thr);   if(r>1&&r<lim)runs.push(r);
   }
   if(!runs.length)return null;
   runs.sort((a,b)=>a-b);
   return runs[runs.length>>1];
 }
+
+// ═══════════════ ВИБІРКА ПО КОЛУ (НОВА) ═══════════════
+// Замість 3×3 квадрата — усереднення всіх пікселів всередині кола
+// r = DEC.CIRCLE_R * module (за замовчуванням 28% модуля)
+function sampleCircles(px, N, T, thr) {
+  const n = T - 2 * DEC.PAD;
+  const module = N / T;
+  const circleR = module * DEC.CIRCLE_R;
+  const r2 = circleR * circleR;
+
+  const R = new Uint8Array(n * n);
+  const G = new Uint8Array(n * n);
+  const B = new Uint8Array(n * n);
+  const L = new Uint8Array(n * n);
+
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      // центр модуля у вирівняному квадраті
+      const cx = (x + DEC.PAD + 0.5) * module;
+      const cy = (y + DEC.PAD + 0.5) * module;
+
+      let sr = 0, sg = 0, sb = 0, cnt = 0;
+
+      const x0 = Math.max(0, Math.floor(cx - circleR));
+      const x1 = Math.min(N - 1, Math.ceil(cx + circleR));
+      const y0 = Math.max(0, Math.floor(cy - circleR));
+      const y1 = Math.min(N - 1, Math.ceil(cy + circleR));
+
+      for (let py = y0; py <= y1; py++) {
+        for (let px2 = x0; px2 <= x1; px2++) {
+          const dx = px2 - cx, dy = py - cy;
+          if (dx * dx + dy * dy > r2) continue; // тільки всередині кола
+          const p = (py * N + px2) * 4;
+          sr += px[p]; sg += px[p + 1]; sb += px[p + 2];
+          cnt++;
+        }
+      }
+
+      if (cnt === 0) cnt = 1; // страховка від ділення на 0
+      const i = y * n + x;
+      R[i] = sr / cnt;
+      G[i] = sg / cnt;
+      B[i] = sb / cnt;
+      L[i] = ((sr + sg + sb) / 3 / cnt) > thr ? 1 : 0;
+    }
+  }
+
+  return { R, G, B, L };
+}
+
 function rotate90(a,n){ const o=new a.constructor(n*n);
   for(let y=0;y<n;y++)for(let x=0;x<n;x++)o[x*n+(n-1-y)]=a[y*n+x];
   return o; }
@@ -210,7 +260,6 @@ function refsFor(S){
                       Math.min(255,(r?S.r[2]:0)+(g?S.g[2]:0)+(b?S.b[2]:0))];
   return ND_REFBITS.map(c=>({bits:c,col:mix(c[0],c[1],c[2])}));
 }
-// розкладаємо кольорові модулі на 3 канали (пробуємо обидві RGB-палітри)
 function classifyRGB(R,G,B,n){
   const pals=(typeof RGB_SOFT!=='undefined')?[RGB_SOFT,ND_PAL2]:[ND_PAL2];
   let best=null;
@@ -225,11 +274,9 @@ function classifyRGB(R,G,B,n){
   return best;
 }
 
-// з готової вибірки n×n дає всі валідні варіанти прочитання
 function decodeSampled(R,G,B,L,n){
   const out=[], modes=['oct','quad','half'];
 
-  // моно-шар (за яскравістю L) — покриває і ч/б, і одношаровий кольоровий код
   for(const m of modes){
     const v=decodeVoted(L,n,m,0);
     if(v.text!==null && v.minMargin>=DEC.MIN_MARGIN){
@@ -237,7 +284,6 @@ function decodeSampled(R,G,B,L,n){
       if(a>=DEC.MIN_AGREE) out.push({kind:'one',score:a,mode:m,n,res:[v.text,null,null]});
     }
   }
-  // RGB: три незалежні канали або моноліт (мітка в R, offset=1)
   const cls=classifyRGB(R,G,B,n);
   for(const m of modes){
     const vr=decodeVoted(cls.cr,n,m,0), vg=decodeVoted(cls.cg,n,m,0), vb=decodeVoted(cls.cb,n,m,0);
@@ -265,7 +311,7 @@ function decodeSampled(R,G,B,L,n){
   return out;
 }
 
-// читає вже вирівняний квадрат: вимір T, вибірка, 4 повороти
+// читає вже вирівняний квадрат: вимір T, вибірка по колах, 4 повороти
 function readDeskewed(px,N){
   const gray=new Float32Array(N*N);
   for(let i=0;i<N*N;i++)gray[i]=(px[i*4]+px[i*4+1]+px[i*4+2])/3;
@@ -276,21 +322,14 @@ function readDeskewed(px,N){
 
   for(let dT=-2;dT<=2;dT++){
     const T=Test+dT;
-    if(T<13 || T%2===0) continue;         // T=n+6, n непарне ≥7 → T непарне ≥13
+    if(T<13 || T%2===0) continue;
     const n=T-2*DEC.PAD;
     if(n<MINN || n%2===0 || n>145) continue;
-    const module=N/T;
-    let R=new Uint8Array(n*n),G=new Uint8Array(n*n),B=new Uint8Array(n*n),L=new Uint8Array(n*n);
-    for(let y=0;y<n;y++)for(let x=0;x<n;x++){
-      const cx=(x+DEC.PAD+0.5)*module, cy=(y+DEC.PAD+0.5)*module;
-      let sr=0,sg=0,sb=0,c=0;                // усереднення 3×3 для стабільності
-      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-        const sx=Math.min(N-1,Math.max(0,Math.round(cx+dx))), sy=Math.min(N-1,Math.max(0,Math.round(cy+dy)));
-        const p=(sy*N+sx)*4; sr+=px[p]; sg+=px[p+1]; sb+=px[p+2]; c++;
-      }
-      const i=y*n+x; R[i]=sr/c; G[i]=sg/c; B[i]=sb/c; L[i]=((sr+sg+sb)/3/c)>thr?1:0;
-    }
-    for(let rot=0;rot<4;rot++){             // орієнтація невідома → 4 повороти
+
+    // ── ВИБІРКА ПО КОЛАХ (замість 3×3 квадрата) ──
+    let { R, G, B, L } = sampleCircles(px, N, T, thr);
+
+    for(let rot=0;rot<4;rot++){
       for(const r of decodeSampled(R,G,B,L,n)) push(r);
       if(rot<3){ R=rotate90(R,n); G=rotate90(G,n); B=rotate90(B,n); L=rotate90(L,n); }
     }
@@ -337,7 +376,6 @@ function runDecodeAttempts(source){
   }
 
   // 2) запас: вважати центральний квадрат уже вирівняним кодом
-  //    (ідеальні PNG/скріни без нахилу, коли рамку не вдалось локалізувати)
   try{
     const side=Math.min(W,H), x0=Math.floor((W-side)/2), y0=Math.floor((H-side)/2);
     const cv=document.createElement('canvas'); cv.width=cv.height=DEC.DESKEW_N;
