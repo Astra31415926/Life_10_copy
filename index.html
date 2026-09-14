@@ -381,7 +381,23 @@ function build(){
   $('rt').innerHTML=ok?'<span class="g">✓ цей орнамент декодується</span>':'<span class="w">перевір текст</span>';
   hasImage=true;syncMain();for(let i=0;i<3;i++)$('d-'+i).classList.toggle('filled',(D.ch[i]||'').length>0);}
 
-function render(){  const QZ=2;  const pad=(frameW>=2?3:frameW),tw=W+pad*2,th=H+pad*2;  const cell=Math.max(2,Math.floor(760/Math.max(tw+QZ*2,th+QZ*2)));  OFF.width=(tw+QZ*2)*cell;OFF.height=(th+QZ*2)*cell;  OCTX.imageSmoothingEnabled=false;  OCTX.fillStyle=FRAME_B;OCTX.fillRect(0,0,OFF.width,OFF.height);  OCTX.save();OCTX.translate(QZ*cell,QZ*cell);  paint(OCTX,cell,pad);  OCTX.restore();  blit();}function render(){  const QZ=2;  const pad=(frameW>=2?3:frameW),tw=W+pad*2,th=H+pad*2;  const cell=Math.max(2,Math.floor(760/Math.max(tw+QZ*2,th+QZ*2)));  OFF.width=(tw+QZ*2)*cell;OFF.height=(th+QZ*2)*cell;  OCTX.imageSmoothingEnabled=false;  OCTX.fillStyle=FRAME_B;OCTX.fillRect(0,0,OFF.width,OFF.height);  OCTX.save();OCTX.translate(QZ*cell,QZ*cell);  paint(OCTX,cell,pad);  OCTX.restore();  blit();}
+const FRAME_COL='#8f8f8f';const FRAME_A='#0a0806';const FRAME_B='#f4efe6';     
+function paint(ctx,cell,pad){
+  const TW=(W+pad*2)*cell,TH=(H+pad*2)*cell;
+  if(pad>=3){
+    ctx.fillStyle=colZero;ctx.fillRect(0,0,TW,TH);const CW=W+pad*2, CH=H+pad*2;const cellAt=(cx,cy,col)=>{ctx.fillStyle=col;ctx.fillRect(cx*cell,cy*cell,cell,cell)};
+    for(let cx=0;cx<CW;cx++){cellAt(cx,0,FRAME_A);cellAt(cx,CH-1,FRAME_A);}
+    for(let cy=1;cy<CH-1;cy++){cellAt(0,cy,FRAME_A);cellAt(CW-1,cy,FRAME_A);}
+    for(let cx=1;cx<CW-1;cx++){cellAt(cx,1,FRAME_B);cellAt(cx,CH-2,FRAME_B);}
+    for(let cy=2;cy<CH-2;cy++){cellAt(1,cy,FRAME_B);cellAt(CW-2,cy,FRAME_B);}
+    for(let cx=2;cx<CW-2;cx++){cellAt(cx,2,((cx+2)%2===0)?FRAME_A:FRAME_B);cellAt(cx,CH-3,((cx+CH-3)%2===0)?FRAME_A:FRAME_B);}
+    for(let cy=3;cy<CH-3;cy++){cellAt(2,cy,((2+cy)%2===0)?FRAME_A:FRAME_B);cellAt(CW-3,cy,((CW-3+cy)%2===0)?FRAME_A:FRAME_B);}
+  }else if(pad>0){ctx.fillStyle=FRAME_COL;ctx.fillRect(0,0,TW,TH);}
+  ctx.fillStyle=colZero;ctx.fillRect(pad*cell,pad*cell,W*cell,H*cell);   
+  const put=(x,y,col)=>{ctx.fillStyle=col;const px=(x+pad)*cell,py=(y+pad)*cell;if(shape==='circle'){ctx.beginPath();ctx.arc(px+cell/2,py+cell/2,cell/2*.94,0,6.2832);ctx.fill()}else ctx.fillRect(px,py,cell,cell)};
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(layers===3){const inAny=dmask.r[i]||dmask.g[i]||dmask.b[i];if(!inAny)continue;const on={r:dmask.r[i]&&grid.r[i],g:dmask.g[i]&&grid.g[i],b:dmask.b[i]&&grid.b[i]};if(!on.r&&!on.g&&!on.b)continue;let R=0,G=0,B=0;if(on.r){R+=RGB_SOFT.r[0];G+=RGB_SOFT.r[1];B+=RGB_SOFT.r[2]}if(on.g){R+=RGB_SOFT.g[0];G+=RGB_SOFT.g[1];B+=RGB_SOFT.g[2]}if(on.b){R+=RGB_SOFT.b[0];G+=RGB_SOFT.b[1];B+=RGB_SOFT.b[2]}put(x,y,`rgb(${Math.min(255,R)},${Math.min(255,G)},${Math.min(255,B)})`);}else{if(!dmask.r[i])continue;if(!grid.r[i])continue;put(x,y,colOne);}}}
+function render(){const pad=(frameW>=2?3:frameW),tw=W+pad*2,th=H+pad*2;const cell=Math.max(2,Math.floor(760/Math.max(tw,th)));OFF.width=tw*cell;OFF.height=th*cell;OCTX.imageSmoothingEnabled=false;paint(OCTX,cell,pad);blit();}
+
 let camStream=null, camRAF=null, camBusy=false, camLastText=null, camTimer=0;
 function camEls(){return {v:$('cam-video'),vf:$('vf'),btn:$('cam-btn')};}
 async function startCam(){
