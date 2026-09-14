@@ -310,12 +310,12 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 let mode='oct', layers=1;
 let W=11,H=11, grid={r:null,g:null,b:null}, dmask={r:null,g:null,b:null};
-let shape='square', frameW=2;   
+let shape='square', frameW=2;
 let hasImage=false, menuOpen=false, busy=false, adminOn=false, palOpen=false;
-let colOne='#f5f5f5', colZero='#0d0a08';   
-let monoMark=0;  
-let scannedImg=null;  
-const RGBTHR=125;     
+let colOne='#f5f5f5', colZero='#0d0a08';
+let monoMark=0;
+let scannedImg=null;
+const RGBTHR=125;
 const D={single:'', ch:['','','']};
 
 const CV=$('cv'), CTX=CV.getContext('2d',{willReadFrequently:true});
@@ -381,22 +381,24 @@ function build(){
   $('rt').innerHTML=ok?'<span class="g">✓ цей орнамент декодується</span>':'<span class="w">перевір текст</span>';
   hasImage=true;syncMain();for(let i=0;i<3;i++)$('d-'+i).classList.toggle('filled',(D.ch[i]||'').length>0);}
 
-const FRAME_COL='#8f8f8f';const FRAME_A='#0a0806';const FRAME_B='#f4efe6';     
-function paint(ctx,cell,pad){
+const FRAME_COL='#8f8f8f';const FRAME_A='#0a0806';const FRAME_B='#f4efe6';
+function paint(ctx,cell,pad,qz){
+  qz=qz||0;const ox=qz*cell,oy=qz*cell;
   const TW=(W+pad*2)*cell,TH=(H+pad*2)*cell;
+  if(qz>0){ctx.fillStyle=FRAME_B;ctx.fillRect(0,0,TW+ox*2,TH+oy*2);}
   if(pad>=3){
-    ctx.fillStyle=colZero;ctx.fillRect(0,0,TW,TH);const CW=W+pad*2, CH=H+pad*2;const cellAt=(cx,cy,col)=>{ctx.fillStyle=col;ctx.fillRect(cx*cell,cy*cell,cell,cell)};
+    ctx.fillStyle=colZero;ctx.fillRect(ox,oy,TW,TH);const CW=W+pad*2, CH=H+pad*2;const cellAt=(cx,cy,col)=>{ctx.fillStyle=col;ctx.fillRect(ox+cx*cell,oy+cy*cell,cell,cell)};
     for(let cx=0;cx<CW;cx++){cellAt(cx,0,FRAME_A);cellAt(cx,CH-1,FRAME_A);}
     for(let cy=1;cy<CH-1;cy++){cellAt(0,cy,FRAME_A);cellAt(CW-1,cy,FRAME_A);}
     for(let cx=1;cx<CW-1;cx++){cellAt(cx,1,FRAME_B);cellAt(cx,CH-2,FRAME_B);}
     for(let cy=2;cy<CH-2;cy++){cellAt(1,cy,FRAME_B);cellAt(CW-2,cy,FRAME_B);}
     for(let cx=2;cx<CW-2;cx++){cellAt(cx,2,((cx+2)%2===0)?FRAME_A:FRAME_B);cellAt(cx,CH-3,((cx+CH-3)%2===0)?FRAME_A:FRAME_B);}
     for(let cy=3;cy<CH-3;cy++){cellAt(2,cy,((2+cy)%2===0)?FRAME_A:FRAME_B);cellAt(CW-3,cy,((CW-3+cy)%2===0)?FRAME_A:FRAME_B);}
-  }else if(pad>0){ctx.fillStyle=FRAME_COL;ctx.fillRect(0,0,TW,TH);}
-  ctx.fillStyle=colZero;ctx.fillRect(pad*cell,pad*cell,W*cell,H*cell);   
-  const put=(x,y,col)=>{ctx.fillStyle=col;const px=(x+pad)*cell,py=(y+pad)*cell;if(shape==='circle'){ctx.beginPath();ctx.arc(px+cell/2,py+cell/2,cell/2*.94,0,6.2832);ctx.fill()}else ctx.fillRect(px,py,cell,cell)};
+  }else if(pad>0){ctx.fillStyle=FRAME_COL;ctx.fillRect(ox,oy,TW,TH);}
+  ctx.fillStyle=colZero;ctx.fillRect(ox+pad*cell,oy+pad*cell,W*cell,H*cell);
+  const put=(x,y,col)=>{ctx.fillStyle=col;const px=ox+(x+pad)*cell,py=oy+(y+pad)*cell;if(shape==='circle'){ctx.beginPath();ctx.arc(px+cell/2,py+cell/2,cell/2*.94,0,6.2832);ctx.fill()}else ctx.fillRect(px,py,cell,cell)};
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(layers===3){const inAny=dmask.r[i]||dmask.g[i]||dmask.b[i];if(!inAny)continue;const on={r:dmask.r[i]&&grid.r[i],g:dmask.g[i]&&grid.g[i],b:dmask.b[i]&&grid.b[i]};if(!on.r&&!on.g&&!on.b)continue;let R=0,G=0,B=0;if(on.r){R+=RGB_SOFT.r[0];G+=RGB_SOFT.r[1];B+=RGB_SOFT.r[2]}if(on.g){R+=RGB_SOFT.g[0];G+=RGB_SOFT.g[1];B+=RGB_SOFT.g[2]}if(on.b){R+=RGB_SOFT.b[0];G+=RGB_SOFT.b[1];B+=RGB_SOFT.b[2]}put(x,y,`rgb(${Math.min(255,R)},${Math.min(255,G)},${Math.min(255,B)})`);}else{if(!dmask.r[i])continue;if(!grid.r[i])continue;put(x,y,colOne);}}}
-function render(){const pad=(frameW>=2?3:frameW),tw=W+pad*2,th=H+pad*2;const cell=Math.max(2,Math.floor(760/Math.max(tw,th)));OFF.width=tw*cell;OFF.height=th*cell;OCTX.imageSmoothingEnabled=false;paint(OCTX,cell,pad);blit();}
+function render(){const QZ=2;const pad=(frameW>=2?3:frameW),tw=W+pad*2,th=H+pad*2;const cell=Math.max(2,Math.floor(760/Math.max(tw+QZ*2,th+QZ*2)));OFF.width=(tw+QZ*2)*cell;OFF.height=(th+QZ*2)*cell;OCTX.imageSmoothingEnabled=false;paint(OCTX,cell,pad,QZ);blit();}
 
 let camStream=null, camRAF=null, camBusy=false, camLastText=null, camTimer=0;
 function camEls(){return {v:$('cam-video'),vf:$('vf'),btn:$('cam-btn')};}
@@ -405,44 +407,42 @@ async function startCam(){
   try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1920}}});v.srcObject=camStream; v.setAttribute('playsinline','');await v.play();CV.classList.add('hide'); v.classList.remove('hide'); vf.classList.remove('hide');$('stage').classList.add('scanning');btn.textContent='⏹ Зупинити'; $('rt').innerHTML='<span class="w">наведи на код…</span>';camLastText=null; camTimer=0; camBusy=false;startScanSound();camLoop();clearTimeout(window._camTO);clearInterval(window._camTick);window._camTick=setInterval(function(){tone(1200,.03,.03,'sine');},900);window._camTO=setTimeout(function(){if(camStream){stopCam();$('rt').innerHTML='<span class="w">не знайдено — спробуй ще</span>';}},10000);}catch(e){ alert('Камера недоступна: '+e); }
 }
 function stopCam(){const {v,vf,btn}=camEls();clearTimeout(window._camTO);clearInterval(window._camTick);if(camRAF)cancelAnimationFrame(camRAF); camRAF=null;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}if(v.srcObject)v.srcObject=null;v.classList.add('hide'); vf.classList.add('hide'); CV.classList.remove('hide');$('stage').classList.remove('scanning');stopScanSound();btn.textContent='📷 Камера';}
-function camLoop(){  
-  const {v}=camEls();  
-  if(!camStream){return;}  
-  const now=performance.now();  
-  if(!camBusy && v.readyState>=2 && now-camTimer>250){    
-    camTimer=now; 
-    camBusy=true;    
-    try{      
-      const c=document.createElement('canvas');      
-      c.width=v.videoWidth; 
-      c.height=v.videoHeight;      
-      const cx=c.getContext('2d',{willReadFrequently:true});      
-      cx.drawImage(v,0,0);      
-      let found=[];      
-      try{ found=runDecodeAttempts(c); }catch(e){}      
-      if(found.length){        
-        const txt=found[0].res.filter(x=>x).join('\u0001');        
-        if(txt){          
-          const shot=document.createElement('canvas');          
-          shot.width=shot.height=512;          
-          shot.getContext('2d').drawImage(c,0,0,512,512);          
-          const url=shot.toDataURL('image/png');          
-          stopCam();          
-          showCamResult(found,url);          
-          camBusy=false;          
-          return;        
-        }        
-        camLastText=txt;      
-      }else{        
-        camLastText=null;      
-      }    
-    }catch(e){}    
-    camBusy=false;  
+function camLoop(){
+  const {v}=camEls();
+  if(!camStream){return;}
+  const now=performance.now();
+  if(!camBusy && v.readyState>=2 && now-camTimer>250){
+    camTimer=now; camBusy=true;
+    try{
+      const c=document.createElement('canvas');
+      c.width=v.videoWidth; c.height=v.videoHeight;
+      const cx=c.getContext('2d',{willReadFrequently:true});
+      cx.drawImage(v,0,0);
+      let found=[];
+      try{ found=runDecodeAttempts(c); }catch(e){}
+      if(found.length){
+        const txt=found[0].res.filter(x=>x).join('\u0001');
+        if(txt){
+          const shot=document.createElement('canvas');
+          shot.width=shot.height=512;
+          shot.getContext('2d').drawImage(c,0,0,512,512);
+          const url=shot.toDataURL('image/png');
+          stopCam();
+          showCamResult(found,url);
+          camBusy=false;
+          return;
+        }
+        camLastText=txt;
+      }else{
+        camLastText=null;
+      }
+    }catch(e){}
+    camBusy=false;
   }
   camRAF=requestAnimationFrame(camLoop);
 }
 
- $('cam-btn').onclick = () => { camStream ? stopCam() : startCam(); };
+$('cam-btn').onclick = () => { camStream ? stopCam() : startCam(); };
 
 async function showCamResult(found,shotURL){
   flash();const best=found[0];mode=best.mode;syncSeg('sym','m',mode);scannedImg=shotURL;
@@ -453,7 +453,7 @@ async function showCamResult(found,shotURL){
 
 function drawScanned(url){return new Promise(res=>{const im=new Image();im.onload=()=>{OFF.width=OFF.height=512;OCTX.imageSmoothingEnabled=false;OCTX.drawImage(im,0,0,512,512);blit();res()};im.onerror=()=>res();im.src=url;});}
 
- $('file').onchange=e=>{
+$('file').onchange=e=>{
   const f=e.target.files[0];if(!f)return;const url=URL.createObjectURL(f),im=new Image();
   im.onload=async()=>{
     URL.revokeObjectURL(url);busy=true;
@@ -468,7 +468,7 @@ function drawScanned(url){return new Promise(res=>{const im=new Image();im.onloa
 
     if(!found || !found.length){st.classList.add('failed');sadSound();$('rt').innerHTML='<span class="r">✕ код не розпізнано</span>';$('report').textContent='—';await sleep(1600);st.classList.remove('failed');clearStage();busy=false;e.target.value='';return;}
 
-    flash();const best=found[0];mode=best.mode;syncSeg('sym','m',mode);scannedImg=shotURL;   
+    flash();const best=found[0];mode=best.mode;syncSeg('sym','m',mode);scannedImg=shotURL;
     if(best.kind==='three'){setLayers(3);monoMark=0;D.ch=[best.res[0]||'',best.res[1]||'',best.res[2]||''];okChime();for(let i=0;i<3;i++)$('t-'+i).value='';for(let i=0;i<3;i++)if(best.res[i]){await typeOut($('t-'+i),best.res[i],22);grow($('t-'+i),120);}document.body.classList.add('rgb-solo');$('txt').value=[best.res[0],best.res[1],best.res[2]].filter(Boolean).join(' ');D.single=$('txt').value;showResult('✓ прочитано · три канали',null);
     }else{setLayers(1);monoMark=0;const txt=best.res[0]||'';D.single=txt;okChime();$('txt').value='';await typeOut($('txt'),txt,26);grow($('txt'),200);const el=$('txt');el.scrollTop=el.scrollHeight;el.selectionStart=el.selectionEnd=el.value.length;prevLen=txt.length;pushHist();showResult('✓ прочитано'+(best.kind==='mono'?' · монолітний текст':''),txt);}
 
@@ -492,7 +492,7 @@ function openMenu(){
     if(needSplitHint()){const only=D.ch.find(t=>t&&t.trim())||'';m.innerHTML=`<div class="menu-t">Заповнено лише один канал</div><div class="hint">Розкласти цей текст на три кольори — вийде компактніший і барвистіший візерунок. При розшифровці він знову стане єдиним текстом.</div><div class="row"><button class="b gold" id="do-split">⑂ Розкласти на три</button></div><div class="row"><button class="b" id="do-asis">Лишити як є</button></div>`;$('do-split').onclick=()=>{const parts=splitThree(only);D.ch=parts;monoMark=1;refreshInputs();build();closeMenu();setTimeout(openMenu,60);};$('do-asis').onclick=()=>{monoMark=0;build();closeMenu();setTimeout(openMenu,60);};return;}
     const sug=defaultName();m.innerHTML=`<div class="menu-t">Ім'я файлу</div><input id="fname" value="${sug}" autocomplete="off" spellcheck="false"><div class="row"><button class="b gold" id="do-save">⤓ Зберегти PNG</button></div><div class="row"><button class="b" id="do-publish">✦ Опублікувати в галерею</button></div><div class="row"><button class="b" id="do-scan">⌖ Сканувати інше</button></div>`;$('do-save').onclick=()=>{const n=($('fname').value||sug).trim().replace(/[\\/:*?"<>|]/g,'_')||'taina';savePNG(n);closeMenu()};$('do-publish').onclick=e=>{e.stopPropagation();openPublish()};$('do-scan').onclick=()=>{closeMenu();$('file').click()};setTimeout(()=>{const f=$('fname');if(f){f.focus();f.select()}},40);
   }else{m.innerHTML=`<div class="menu-t">Джерело</div><div class="row"><button class="b gold" id="src-gal">🖼 Обрати файл</button></div>`;$('src-gal').onclick=()=>{closeMenu();$('file').click()};}}
- $('mainbtn').onclick=e=>{e.stopPropagation();if(busy)return;menuOpen?closeMenu():openMenu()};
+$('mainbtn').onclick=e=>{e.stopPropagation();if(busy)return;menuOpen?closeMenu():openMenu()};
 document.addEventListener('click',e=>{if(menuOpen&&!e.target.closest('.action'))closeMenu();if(palOpen&&!e.target.closest('.palette-pop')){palOpen=false;$('pal-panel').classList.add('hide')}});
 
 function splitThree(t){const ch=[...t];const k=Math.ceil(ch.length/3);return [ch.slice(0,k).join(''),ch.slice(k,2*k).join(''),ch.slice(2*k).join('')];}
@@ -508,7 +508,7 @@ const ONE_COLORS=['#f5f0e6','#ffd27a','#7ee0ff','#ff9ec7','#a8e6a1','#e8c890','#
 const ZERO_COLORS=['#0d0a08','#000000','#141414','#1a1420','#101820','#12100c','#1e1a14','#0a0e14','#241a10','#1a0e0e','#0e1a14','#161020','#2a2018','#0a0a0a','#201818','#101410'];
 const RGB_SOFT = {r:[220,50,60], g:[65,195,65], b:[60,70,215]};
 function buildSwatches(){const mk=(box,arr,getCur,set)=>{box.innerHTML='';arr.forEach(col=>{const s=document.createElement('div');s.className='sw'+(col===getCur()?' on':'');s.style.background=col;s.onclick=()=>{set(col);[...box.children].forEach(c=>c.classList.remove('on'));s.classList.add('on');render();tone(700,.05,.05);};box.appendChild(s);});};mk($('sw-one'),ONE_COLORS,()=>colOne,c=>colOne=c);mk($('sw-zero'),ZERO_COLORS,()=>colZero,c=>colZero=c);}
- $('pal-btn').onclick=e=>{e.stopPropagation();palOpen=!palOpen;$('pal-panel').classList.toggle('hide',!palOpen);$('pal-btn').classList.toggle('on',palOpen);};
+$('pal-btn').onclick=e=>{e.stopPropagation();palOpen=!palOpen;$('pal-panel').classList.toggle('hide',!palOpen);$('pal-btn').classList.toggle('on',palOpen);};
 
 const SYMS={'☺':{name:'смайли',list:[...'😀😃😄😁😆😅😂🤣🙂🙃😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤗🤭🤫🤔🫡😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🥵🥶😵🤯🤠🥳🥸😎🤓🧐😕😟🙁😮😯😲😳🥺🥹😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀💩🤡👹👺👻👽👾🤖']},'♥':{name:'символи',list:[...'♥★☆✦✧❄☀☾☯☮♪♫✚∞♦♠♣☘✿❀⚘⚡✝☦☪🕉✡☸⚛✴❇✳❈❉']},'♈':{name:'зодіак',list:[...'♈♉♊♋♌♍♎♏♐♑♒♓⛎☉☽☿♀♁♂♃♄♅♆']},'₿':{name:'крипта й гроші',list:[...'₿ΞŁ$€£¥₽¢₹₩₪₴₺₮₦₱₡₫💰💵💴💶💷🪙💸💳']},'ᚠ':{name:'руни',list:[...'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟᚪᚫᚬᛘᛦᛨ']},'福':{name:'ієрогліфи',list:[...'福愛龍虎鳳凰道德仁義禮智信和平安康壽喜財富貴春夏秋冬日月山水火風雷電花鳥魚']},'☩':{name:'обереги',list:[...'☩⚕☯♁✠☥⚚☫☬〄卐꙰ᛝᛞ☘♧⚜⁂❋⚛☸♆⊕✶✷✸']},'🃏':{name:'таро',list:[...'🃏🂠🂡🂢🂣🂤🂥🂦🂧🂨🂩🂪🂫🂭🂮🃁🃂🃃🃄🃅🃆🃇🃈🃉🃊🃋🃍🃎']},'🌸':{name:'природа',list:[...'🌸🌼🌻🌺🌷🌹🥀💐🌵🌲🌳🌴🌱🍀🍁🍂🍃🌾🌿☘🍄🌰⭐🌟✨⚡☄🔥💧🌊❄☃⛄🌈☀🌙']},'🎵':{name:'різне',list:[...'🎵🎶🎼🎹🎸🎺🎻🥁♟♜♞♝♛♚⚀⚁⚂⚃⚄⚅🀄🎲🎯🎰🎴⚽⚾🏀🏐🏈']}};
 let curSym='☺';
@@ -523,11 +523,11 @@ function refreshInputs(){$('txt').value=D.single;autoGrow();for(let i=0;i<3;i++)
 function grow(el,max){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,max)+'px';}
 function autoGrow(){grow($('txt'),200);for(let i=0;i<3;i++)grow($('t-'+i),120);}
 
- $('layers').onclick=e=>{const b=e.target.closest('button');if(!b)return;scannedImg=null;setLayers(+b.dataset.l);build()};
- $('sym').onclick=e=>{const b=e.target.closest('button');if(!b)return;scannedImg=null;mode=b.dataset.m;syncSeg('sym','m',mode);build()};
- $('shape').onclick=e=>{const b=e.target.closest('button');if(!b)return;shape=b.dataset.s;syncSeg('shape','s',shape);scannedImg=null;render()};
- $('frame').onclick=e=>{const b=e.target.closest('button');if(!b)return;frameW=+b.dataset.f;syncSeg('frame','f',String(frameW));scannedImg=null;render()};
- $('admin-toggle').onclick=()=>{adminOn=!adminOn;$('admin-box').classList.toggle('hide',!adminOn);$('admin-toggle').classList.toggle('on',adminOn);$('admin-toggle').textContent=adminOn?'⚙ сховати адмін':'⚙ для адміна';};
+$('layers').onclick=e=>{const b=e.target.closest('button');if(!b)return;scannedImg=null;setLayers(+b.dataset.l);build()};
+$('sym').onclick=e=>{const b=e.target.closest('button');if(!b)return;scannedImg=null;mode=b.dataset.m;syncSeg('sym','m',mode);build()};
+$('shape').onclick=e=>{const b=e.target.closest('button');if(!b)return;shape=b.dataset.s;syncSeg('shape','s',shape);scannedImg=null;render()};
+$('frame').onclick=e=>{const b=e.target.closest('button');if(!b)return;frameW=+b.dataset.f;syncSeg('frame','f',String(frameW));scannedImg=null;render()};
+$('admin-toggle').onclick=()=>{adminOn=!adminOn;$('admin-box').classList.toggle('hide',!adminOn);$('admin-toggle').classList.toggle('on',adminOn);$('admin-toggle').textContent=adminOn?'⚙ сховати адмін':'⚙ для адміна';};
 
 const HIST=[];let hPos=-1,hTimer=null;
 function snapshot(){return layers===1?('1|'+D.single):(monoMark+'|3|'+D.ch.join('\u0001'))}
@@ -535,12 +535,12 @@ function syncHist(){$('undo').disabled=hPos<=0;$('redo').disabled=hPos>=HIST.len
 function pushHist(){const snap=snapshot();if(HIST[hPos]===snap)return;HIST.splice(hPos+1);HIST.push(snap);if(HIST.length>60)HIST.shift();hPos=HIST.length-1;syncHist();}
 function schedHist(){clearTimeout(hTimer);hTimer=setTimeout(pushHist,700)}
 function applyHist(){const snap=HIST[hPos]||'1|';if(snap.startsWith('1|')){setLayers(1);D.single=snap.slice(2);}else{const parts=snap.split('|');monoMark=+parts[0];setLayers(3);D.ch=parts.slice(2).join('|').split('\u0001');}refreshInputs();build();syncHist();tone(560,.06,.05);}
- $('undo').onclick=()=>{if(hPos>0){hPos--;applyHist()}};
- $('redo').onclick=()=>{if(hPos<HIST.length-1){hPos++;applyHist()}};
- $('clr').onclick=()=>{clearTimeout(hTimer);D.single='';D.ch=['','',''];monoMark=0;refreshInputs();pushHist();build();activeInput().focus();tone(320,.09,.06,'triangle');};
+$('undo').onclick=()=>{if(hPos>0){hPos--;applyHist()}};
+$('redo').onclick=()=>{if(hPos<HIST.length-1){hPos++;applyHist()}};
+$('clr').onclick=()=>{clearTimeout(hTimer);D.single='';D.ch=['','',''];monoMark=0;refreshInputs();pushHist();build();activeInput().focus();tone(320,.09,.06,'triangle');};
 
 let prevLen=0;
- $('txt').oninput=e=>{const v=e.target.value;if(v.length>prevLen)keyClick();prevLen=v.length;scannedImg=null;D.single=v;autoGrow();build();schedHist();};
+$('txt').oninput=e=>{const v=e.target.value;if(v.length>prevLen)keyClick();prevLen=v.length;scannedImg=null;D.single=v;autoGrow();build();schedHist();};
 for(let i=0;i<3;i++)$('t-'+i).oninput=e=>{scannedImg=null;D.ch[i]=e.target.value;monoMark=0;grow(e.target,120);build();schedHist();};
 
 document.addEventListener('dragover',e=>e.preventDefault());
@@ -552,7 +552,7 @@ function applyMode(idx){modeIdx=((idx%MODES.length)+MODES.length)%MODES.length;c
 let baseAcc={acc:'#c9a876',hot:'#e8c890',dim:'#8f7451',line:'rgba(201,168,118,.22)'};
 function refreshThemeAccent(){const r=document.body.style;const isLight=MODES[modeIdx].light;if(layers===3){if(isLight){r.setProperty('--acc','#186680');r.setProperty('--acc-hot','#0f4e64');r.setProperty('--acc-dim','#4a8ca0');r.setProperty('--line','rgba(24,102,128,.30)');}else{r.setProperty('--acc','#5ec8e8');r.setProperty('--acc-hot','#8fe4ff');r.setProperty('--acc-dim','#3f7f96');r.setProperty('--line','rgba(94,200,232,.24)');}}else{r.setProperty('--acc',baseAcc.acc);r.setProperty('--acc-hot',baseAcc.hot);r.setProperty('--acc-dim',baseAcc.dim);r.setProperty('--line',baseAcc.line);}}
 
- $('themeBtn').onclick=()=>applyMode(modeIdx+1);   
+$('themeBtn').onclick=()=>applyMode(modeIdx+1);
 let startIdx=0;try{startIdx=parseInt(localStorage.getItem('taina_mode_idx'))||0;}catch(e){}
 applyMode(startIdx);buildSwatches();buildSymTabs();buildSymGrid();syncSeg('frame','f','1');setLayers(1);build();autoGrow();
 
